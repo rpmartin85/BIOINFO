@@ -1,0 +1,16 @@
+## AULA 5 - LISTA DE COMANDOS
+
+#HAPLOTYPE CALLER
+java -jar /data/bioinfo2019/GenomeAnalysisTK.jar -T HaplotypeCaller -R /data/hg38_baseFiles/hg38/hg38.fa -I /data/renan/HG00096_CHR20_sorted_MKD_GATKrecal.bam --emitRefConfidence GVCF --dbsnp /data/hg38_baseFiles/dbsnp151/Homo_sapiens_assembly38.dbsnp151.vcf.gz -L chr20 -o HG00096_CHR20.vcf -variant_index_type LINEAR -variant_index_parameter 128000
+
+
+#DOWNLOAD BASE DE DADOS ANNOVAR
+/data/annovar/annotate_variation.pl -downdb -webfrom annovar -buildver hg38 abraom /data/annovar/humandb/
+
+
+#CONVERSÃO DE VCF EM ANNOVAR (TXT)
+/data/annovar/convert2annovar.pl -format vcf4 /data/renan/HG00096_CHR20.vcf --includeinfo -withzyg -out /data/renan/HG00096_CHR20.vcf.avinput
+
+
+#ANOTAÇÃO DE ANNOVAR (TXT)
+/data/annovar/table_annovar.pl /data/renan/HG00096_CHR20.vcf.avinput /data/annovar/humandb/ -buildver hg38 -out HG00096 -remove -protocol refGene,exac03,abraom,dbnsfp35a -operation g,f,f,f
