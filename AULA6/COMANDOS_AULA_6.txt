@@ -1,0 +1,37 @@
+## AULA 6 - COMANDOS PIPELINE
+
+#MAPEAMENTO BWA
+/usr/local/bin/bwa-0.7.17/bwa mem -t 4 -B 4 -O 6 -E 1 -M -a -R "@RG\tID:HG00096\tPL:Illumina\tPU:TOTO2\tLB:TOTO\tSM:TOTO3" /data/hg38_baseFiles/hg38/hg38.fa /data/bioinfo2019/HG00096/SRR081241_1.filt.fastq.gz /data/bioinfo2019/HG00096/SRR081241_2.filt.fastq.gz | samtools view -Shb -o /data/bioinfo2019/HG00096/HG00096.bam
+samtools index -b /data/bioinfo2019/HG00096/HG00096.bam
+
+
+# SAMTOOLS SORTING
+samtools sort -O BAM -o /data/bioinfo2019/HG00096/HG00096_sorted.bam /data/bioinfo2019/HG00096/HG00096.bam
+samtools index -b /data/bioinfo2019/HG00096/HG00096_sorted.bam
+
+
+# PICARD MARK DUPLICATES
+java -jar /data/bioinfo2019/picard.jar MarkDuplicates I=/data/bioinfo2019/HG00096/HG00096_sorted.bam O=/data/bioinfo2019/HG00096/HG00096_sorted_MKD.bam METRICS_FILE=/data/bioinfo2019/HG00096/HG00096_mark_dups_metrics.txt ASSUME_SORT_ORDER=queryname QUIET=true
+samtools index -b /data/bioinfo2019/HG00096/HG00096_sorted_MKD.bam
+
+
+# GATK BASE RECALIBRATOR
+
+java -jar /data/bioinfo2019/GenomeAnalysisTK.jar -T BaseRecalibrator -I /data/bioinfo2019/HG00096/HG00096_sorted_MKD.bam -R /data/hg38_baseFiles/hg38/hg38.fa -o /data/bioinfo2019/HG00096/HG00096.recalfile -nct 8 --downsample_to_fraction .1 -L chr1 -L chr2 -L chr3 -L chr4 -L chr5 -L chr6 -L chr7 -L chr8 -L chr9 -L chr10 -L chr11 -L chr12 -L chr13 -L chr14 -L chr15 -L chr16 -L chr17 -L chr18 -L chr19 -L chr20 -L chr21 -L chr22 -L chrX -L chrY -knownSites /data/hg38_baseFiles/gold_standard_indels/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz -knownSites /data/hg38_baseFiles/known_indels/Homo_sapiens_assembly38.known_indels.vcf.gz
+
+
+# SAMTOOLS PRINT READS
+java -jar /data/bioinfo2019/GenomeAnalysisTK.jar -T PrintReads -I /data/bioinfo2019/HG00096/HG00096_sorted_MKD.bam -R /data/hg38_baseFiles/hg38/hg38.fa -BQSR /data/bioinfo2019/HG00096/HG00096.recalfile -o /data/bioinfo2019/HG00096/HG00096_sorted_MKD_GATKrecal.bam --globalQScorePrior -1.0 --useOriginalQualities --preserve_qscores_less_than 6 --static_quantized_quals 10 --static_quantized_quals 20 --static_quantized_quals 30 --disable_indel_quals --filter_bases_not_stored
+samtools index -b /data/bioinfo2019/HG00096/HG00096_sorted_MKD_GATKrecal.bam
+
+
+#HAPLOTYPE CALLER
+java -jar /data/bioinfo2019/GenomeAnalysisTK.jar -T HaplotypeCaller -R /data/hg38_baseFiles/hg38/hg38.fa -I /data/bioinfo2019/HG00096/HG00096_sorted_MKD_GATKrecal.bam --emitRefConfidence GVCF --dbsnp /data/hg38_baseFiles/dbsnp151/Homo_sapiens_assembly38.dbsnp151.vcf.gz -L chr1 -L chr2 -L chr3 -L chr4 -L chr5 -L chr6 -L chr7 -L chr8 -L chr9 -L chr10 -L chr11 -L chr12 -L chr13 -L chr14 -L chr15 -L chr16 -L chr17 -L chr18 -L chr19 -L chr20 -L chr21 -L chr22 -L chrX -L chrY -o /data/bioinfo2019/HG00096/HG00096.vcf -variant_index_type LINEAR -variant_index_parameter 128000
+
+
+#CONVERSÃO DE VCF EM ANNOVAR (TXT)
+/data/annovar/convert2annovar.pl -format vcf4 /data/bioinfo2019/HG00096/HG00096.vcf --includeinfo -withzyg -out /data/bioinfo2019/HG00096.vcf.avinput
+
+
+#ANOTAÇÃO DE ANNOVAR (TXT)
+/data/annovar/table_annovar.pl /data/bioinfo2019/HG00096.vcf.avinput /data/annovar/humandb/ -buildver hg38 -out /data/bioinfo2019/HG00096 -remove -protocol refGene,exac03,abraom,dbnsfp35a -operation g,f,f,f
